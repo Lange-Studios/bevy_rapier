@@ -1,5 +1,5 @@
 use crate::dynamics::ReadMassProperties;
-use crate::geometry::Collider;
+use crate::geometry::{ActiveCollidingEntities, Collider};
 use crate::plugin::context::systemparams::{RapierEntity, RAPIER_CONTEXT_EXPECT_ERROR};
 use crate::plugin::context::RapierContextEntityLink;
 use crate::plugin::{
@@ -566,14 +566,24 @@ pub fn init_async_scene_colliders(
 }
 
 /// Adds entity to [`CollidingEntities`] on starting collision and removes from it when the
-/// collision ends.
+/// collision ends. Adds entity to [`ActiveCollidingEntities`] if there is a collision. Cleared
+/// at the start of the every frame, but reinserted every frame if still persists regardless of
+/// started or stopped.
 pub fn update_colliding_entities(
     mut collision_events: MessageReader<CollisionEvent>,
     mut colliding_entities: Query<&mut CollidingEntities>,
+    mut active_colliding_entities: Query<&mut ActiveCollidingEntities>,
 ) {
     for event in collision_events.read() {
         match event.to_owned() {
-            CollisionEvent::Active(_entity1, _entity2, _) => todo!(),
+            CollisionEvent::Active(entity1, entity2, _) => {
+                if let Ok(mut entities) = active_colliding_entities.get_mut(entity1) {
+                    entities.0.insert(entity2);
+                }
+                if let Ok(mut entities) = active_colliding_entities.get_mut(entity2) {
+                    entities.0.insert(entity1);
+                }
+            }
             CollisionEvent::Started(entity1, entity2, _) => {
                 if let Ok(mut entities) = colliding_entities.get_mut(entity1) {
                     entities.0.insert(entity2);

@@ -84,7 +84,11 @@ impl EventHandler for EventQueue<'_> {
         _: Option<&ContactPair>,
     ) {
         let event = match event {
-            RapierCollisionEvent::Active(_h1, _h2, _flags) => todo!(),
+            RapierCollisionEvent::Active(h1, h2, flags) => {
+                let e1 = self.collider2entity(colliders, h1);
+                let e2 = self.collider2entity(colliders, h2);
+                CollisionEvent::Active(e1, e2, flags)
+            }
             RapierCollisionEvent::Started(h1, h2, flags) => {
                 let e1 = self.collider2entity(colliders, h1);
                 let e2 = self.collider2entity(colliders, h2);

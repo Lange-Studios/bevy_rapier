@@ -556,6 +556,41 @@ impl CollidingEntities {
     }
 }
 
+/// Component which will be filled (if present) with a list of entities with which the current
+/// entity is currently in contact.
+///
+/// This currently only updates when on an entity with a `Collider`, and if the
+/// [`ActiveEvents::COLLISION_EVENTS`] is set on this entity or the entity it
+/// collided with.
+#[derive(Component, Default, Reflect)]
+#[reflect(Component, Default)]
+pub struct ActiveCollidingEntities(pub(crate) HashSet<Entity>);
+
+impl ActiveCollidingEntities {
+    /// Returns the number of colliding entities.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns `true` if there is no colliding entities.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns `true` if the collisions contains the specified entity.
+    #[must_use]
+    pub fn contains(&self, entity: Entity) -> bool {
+        self.0.contains(&entity)
+    }
+
+    /// An iterator visiting all colliding entities in arbitrary order.
+    pub fn iter(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.0.iter().copied()
+    }
+}
+
 /// Indicates whether or not the collider is disabled explicitly by the user.
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Component, Reflect)]
 #[reflect(Component, Default, PartialEq)]
