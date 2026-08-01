@@ -573,6 +573,7 @@ pub fn update_colliding_entities(
 ) {
     for event in collision_events.read() {
         match event.to_owned() {
+            CollisionEvent::Active(_entity1, _entity2, _) => todo!(),
             CollisionEvent::Started(entity1, entity2, _) => {
                 if let Ok(mut entities) = colliding_entities.get_mut(entity1) {
                     entities.0.insert(entity2);

@@ -19,6 +19,8 @@ use crate::prelude::{ActiveEvents, ContactForceEventThreshold};
 /// [`ActiveEvents::COLLISION_EVENTS`] flag enabled.
 #[derive(Message, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CollisionEvent {
+    /// Event occurring when two colliders are actively
+    Active(Entity, Entity, CollisionEventFlags),
     /// Event occurring when two colliders start colliding
     Started(Entity, Entity, CollisionEventFlags),
     /// Event occurring when two colliders stop colliding
@@ -82,6 +84,7 @@ impl EventHandler for EventQueue<'_> {
         _: Option<&ContactPair>,
     ) {
         let event = match event {
+            RapierCollisionEvent::Active(_h1, _h2, _flags) => todo!(),
             RapierCollisionEvent::Started(h1, h2, flags) => {
                 let e1 = self.collider2entity(colliders, h1);
                 let e2 = self.collider2entity(colliders, h2);
