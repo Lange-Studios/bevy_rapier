@@ -56,6 +56,7 @@ pub fn apply_scale(
         ),
         Or<(
             Changed<Collider>,
+            // TODO: This always gets flagged as things move and the scale gets set over and over again
             Changed<GlobalTransform>,
             Changed<ColliderScale>,
         )>,
@@ -325,31 +326,42 @@ pub(crate) fn collider_offset(
     child_of_query: &Query<&ChildOf>,
     transform_query: &Query<&Transform>,
 ) -> (Option<RigidBodyHandle>, Transform) {
-    let mut body_entity = entity;
-    let mut body_handle = rigidbody_set.entity2body.get(&body_entity).copied();
+    let mut current_entity = entity;
+    let mut body_handle = rigidbody_set.entity2body.get(&current_entity).copied();
+
+    // Accumulate the relative transform between Collider and RigidBody
     let mut child_transform = Transform::default();
     while body_handle.is_none() {
-        if let Ok(child_of) = child_of_query.get(body_entity) {
-            if let Ok(transform) = transform_query.get(body_entity) {
-                child_transform = *transform * child_transform;
-            }
-            body_entity = child_of.parent();
+        if let Ok(transform) = transform_query.get(current_entity) {
+            child_transform = *transform * child_transform;
+        }
+
+        if let Ok(child_of) = child_of_query.get(current_entity) {
+            current_entity = child_of.parent();
+            body_handle = rigidbody_set.entity2body.get(&current_entity).copied();
         } else {
             break;
         }
-
-        body_handle = rigidbody_set.entity2body.get(&body_entity).copied();
     }
 
+    // TODO: Not sure if I need this if check
+    // Now walk ABOVE the RigidBody to collect parent scales (like the x4 scale)
     if body_handle.is_some() {
-        if let Ok(transform) = transform_query.get(body_entity) {
-            let scale_transform = Transform {
-                scale: transform.scale,
-                ..default()
-            };
+        let mut accumulated_parent_scale = Vec3::ONE;
 
-            child_transform = scale_transform * child_transform;
+        // Walk all parent entities above the RigidBody to collect total scale
+        while let Ok(transform) = transform_query.get(current_entity) {
+            accumulated_parent_scale *= transform.scale;
+
+            if let Ok(child_of) = child_of_query.get(current_entity) {
+                current_entity = child_of.parent();
+            } else {
+                break;
+            }
         }
+
+        // Apply the accumulated parent scale directly to the translation offset
+        child_transform.translation *= accumulated_parent_scale;
     }
 
     (body_handle, child_transform)
