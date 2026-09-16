@@ -470,18 +470,15 @@ pub fn writeback_rigid_bodies(
                     // We need to compute the new local transform such that:
                     // curr_parent_global_transform * new_transform = interpolated_pos
                     // new_transform = curr_parent_global_transform.inverse() * interpolated_pos
-                    let (inverse_parent_scale, inverse_parent_rotation, inverse_parent_translation) =
-                        parent_global_transform
-                            .affine()
-                            .inverse()
-                            .to_scale_rotation_translation();
+                    let inverse_parent_rotation = parent_global_transform.rotation().inverse();
+
                     let new_rotation = inverse_parent_rotation * interpolated_pos.rotation;
 
                     #[allow(unused_mut)] // mut is needed in 2D but not in 3D.
-                    let mut new_translation = inverse_parent_rotation
-                        * inverse_parent_scale
-                        * interpolated_pos.translation
-                        + inverse_parent_translation;
+                    let mut new_translation = parent_global_transform
+                        .affine()
+                        .inverse()
+                        .transform_point3(interpolated_pos.translation);
 
                     // In 2D, preserve the transform `z` component that may have been set by the user
                     #[cfg(feature = "dim2")]
