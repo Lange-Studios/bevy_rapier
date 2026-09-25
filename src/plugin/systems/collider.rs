@@ -2,6 +2,7 @@ use crate::dynamics::ReadMassProperties;
 use crate::geometry::{ActiveCollidingEntities, Collider};
 use crate::plugin::context::systemparams::{RapierEntity, RAPIER_CONTEXT_EXPECT_ERROR};
 use crate::plugin::context::RapierContextEntityLink;
+use crate::plugin::stable_order::StableOrder;
 use crate::plugin::{
     context::{DefaultRapierContext, RapierContextColliders, RapierRigidBodySet},
     RapierConfiguration,
@@ -143,8 +144,13 @@ pub fn apply_collider_user_changes(
     >,
 
     mut mass_modified: MessageWriter<MassModifiedEvent>,
+    order: StableOrder,
 ) {
-    for (rapier_entity, handle, transform) in changed_collider_transforms.iter() {
+    for (rapier_entity, handle, transform) in order
+        .changes(changed_collider_transforms.iter(), |changed| {
+            changed.1 .0 .0
+        })
+    {
         let (rigidbody_set, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -179,7 +185,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, shape) in changed_shapes.iter() {
+    for (rapier_entity, handle, shape) in
+        order.changes(changed_shapes.iter(), |changed| changed.1 .0 .0)
+    {
         let (rigidbody_set, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -197,7 +205,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, active_events) in changed_active_events.iter() {
+    for (rapier_entity, handle, active_events) in
+        order.changes(changed_active_events.iter(), |changed| changed.1 .0 .0)
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -206,7 +216,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, active_hooks) in changed_active_hooks.iter() {
+    for (rapier_entity, handle, active_hooks) in
+        order.changes(changed_active_hooks.iter(), |changed| changed.1 .0 .0)
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -215,7 +227,11 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, active_collision_types) in changed_active_collision_types.iter() {
+    for (rapier_entity, handle, active_collision_types) in order
+        .changes(changed_active_collision_types.iter(), |changed| {
+            changed.1 .0 .0
+        })
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -224,7 +240,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, friction) in changed_friction.iter() {
+    for (rapier_entity, handle, friction) in
+        order.changes(changed_friction.iter(), |changed| changed.1 .0 .0)
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -234,7 +252,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, restitution) in changed_restitution.iter() {
+    for (rapier_entity, handle, restitution) in
+        order.changes(changed_restitution.iter(), |changed| changed.1 .0 .0)
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -244,7 +264,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, contact_skin) in changed_contact_skin.iter() {
+    for (rapier_entity, handle, contact_skin) in
+        order.changes(changed_contact_skin.iter(), |changed| changed.1 .0 .0)
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -253,7 +275,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, collision_groups) in changed_collision_groups.iter() {
+    for (rapier_entity, handle, collision_groups) in
+        order.changes(changed_collision_groups.iter(), |changed| changed.1 .0 .0)
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -262,7 +286,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, solver_groups) in changed_solver_groups.iter() {
+    for (rapier_entity, handle, solver_groups) in
+        order.changes(changed_solver_groups.iter(), |changed| changed.1 .0 .0)
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -271,7 +297,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, _) in changed_sensors.iter() {
+    for (rapier_entity, handle, _) in
+        order.changes(changed_sensors.iter(), |changed| changed.1 .0 .0)
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -280,7 +308,9 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, _) in changed_disabled.iter() {
+    for (rapier_entity, handle, _) in
+        order.changes(changed_disabled.iter(), |changed| changed.1 .0 .0)
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -289,7 +319,11 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, threshold) in changed_contact_force_threshold.iter() {
+    for (rapier_entity, handle, threshold) in order
+        .changes(changed_contact_force_threshold.iter(), |changed| {
+            changed.1 .0 .0
+        })
+    {
         let (_, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -298,7 +332,11 @@ pub fn apply_collider_user_changes(
         }
     }
 
-    for (rapier_entity, handle, mprops) in changed_collider_mass_props.iter() {
+    for (rapier_entity, handle, mprops) in order
+        .changes(changed_collider_mass_props.iter(), |changed| {
+            changed.1 .0 .0
+        })
+    {
         let (rigidbody_set, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
@@ -377,6 +415,7 @@ pub fn init_colliders(
     mut rigid_body_mprops: Query<&mut ReadMassProperties>,
     child_of_query: Query<&ChildOf>,
     transform_query: Query<&Transform>,
+    order: StableOrder,
 ) {
     for (
         (
@@ -396,7 +435,7 @@ pub fn init_colliders(
             disabled,
         ),
         global_transform,
-    ) in colliders.iter()
+    ) in order.creation(colliders.iter(), |collider| collider.0 .0 .0)
     {
         // Get rapier context from RapierContextEntityLink or insert its default value.
         let context_entity = entity_context_link.map_or_else(

@@ -3,6 +3,7 @@ use crate::plugin::context::systemparams::RAPIER_CONTEXT_EXPECT_ERROR;
 use crate::plugin::context::{
     DefaultRapierContext, RapierContextColliders, RapierContextEntityLink, RapierRigidBodySet,
 };
+use crate::plugin::stable_order::StableOrder;
 use crate::plugin::{configuration::TimestepMode, RapierConfiguration};
 use crate::{dynamics::RigidBody, plugin::context::SimulationToRenderTime};
 use crate::{prelude::*, utils};
@@ -136,11 +137,13 @@ pub fn apply_rigid_body_user_changes(
             Changed<AdditionalSolverIterations>,
         >,
     ),
-    mut mass_modified: MessageWriter<MassModifiedEvent>,
+    (mut mass_modified, order): (MessageWriter<MassModifiedEvent>, StableOrder),
 ) {
     // Deal with sleeping first, because other changes may then wake-up the
     // rigid-body again.
-    for (handle, link, sleeping) in changed_sleeping.iter() {
+    for (handle, link, sleeping) in
+        order.changes(changed_sleeping.iter(), |changed| changed.0 .0 .0)
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -165,7 +168,8 @@ pub fn apply_rigid_body_user_changes(
     //       Similarly, if the rigid-body was kinematic position-based before and
     //       changed to anything else, a transform change would modify the next
     //       position instead of the current one.
-    for (handle, link, rb_type) in changed_rb_types.iter() {
+    for (handle, link, rb_type) in order.changes(changed_rb_types.iter(), |changed| changed.0 .0 .0)
+    {
         let context = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -193,7 +197,9 @@ pub fn apply_rigid_body_user_changes(
             }
         };
 
-    for (handle, link, global_transform, mut interpolation) in changed_transforms.iter_mut() {
+    for (handle, link, global_transform, mut interpolation) in
+        order.changes(changed_transforms.iter_mut(), |changed| changed.0 .0 .0)
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -258,7 +264,9 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, velocity) in changed_velocities.iter() {
+    for (handle, link, velocity) in
+        order.changes(changed_velocities.iter(), |changed| changed.0 .0 .0)
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -270,7 +278,11 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (entity, link, handle, mprops) in changed_additional_mass_props.iter() {
+    for (entity, link, handle, mprops) in order
+        .changes(changed_additional_mass_props.iter(), |changed| {
+            changed.2 .0 .0
+        })
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -289,7 +301,11 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, additional_solver_iters) in changed_additional_solver_iterations.iter() {
+    for (handle, link, additional_solver_iters) in order
+        .changes(changed_additional_solver_iterations.iter(), |changed| {
+            changed.0 .0 .0
+        })
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -299,7 +315,9 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, locked_axes) in changed_locked_axes.iter() {
+    for (handle, link, locked_axes) in
+        order.changes(changed_locked_axes.iter(), |changed| changed.0 .0 .0)
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -309,7 +327,7 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, forces) in changed_forces.iter() {
+    for (handle, link, forces) in order.changes(changed_forces.iter(), |changed| changed.0 .0 .0) {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -323,7 +341,9 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, mut impulses) in changed_impulses.iter_mut() {
+    for (handle, link, mut impulses) in
+        order.changes(changed_impulses.iter_mut(), |changed| changed.0 .0 .0)
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -336,7 +356,9 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, gravity_scale) in changed_gravity_scale.iter() {
+    for (handle, link, gravity_scale) in
+        order.changes(changed_gravity_scale.iter(), |changed| changed.0 .0 .0)
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -346,7 +368,7 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, ccd) in changed_ccd.iter() {
+    for (handle, link, ccd) in order.changes(changed_ccd.iter(), |changed| changed.0 .0 .0) {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -356,7 +378,9 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, soft_ccd) in changed_soft_ccd.iter() {
+    for (handle, link, soft_ccd) in
+        order.changes(changed_soft_ccd.iter(), |changed| changed.0 .0 .0)
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -366,7 +390,9 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, dominance) in changed_dominance.iter() {
+    for (handle, link, dominance) in
+        order.changes(changed_dominance.iter(), |changed| changed.0 .0 .0)
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -376,7 +402,8 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, damping) in changed_damping.iter() {
+    for (handle, link, damping) in order.changes(changed_damping.iter(), |changed| changed.0 .0 .0)
+    {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -387,7 +414,7 @@ pub fn apply_rigid_body_user_changes(
         }
     }
 
-    for (handle, link, _) in changed_disabled.iter() {
+    for (handle, link, _) in order.changes(changed_disabled.iter(), |changed| changed.0 .0 .0) {
         let rigidbody_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
@@ -562,6 +589,7 @@ pub fn init_rigid_bodies(
     default_context_access: Query<Entity, With<DefaultRapierContext>>,
     mut rigidbody_sets: Query<(Entity, &mut RapierRigidBodySet)>,
     rigid_bodies: Query<RigidBodyComponents, Without<RapierRigidBodyHandle>>,
+    order: StableOrder,
 ) {
     for (
         (entity, entity_context_link),
@@ -579,7 +607,7 @@ pub fn init_rigid_bodies(
         damping,
         disabled,
         additional_solver_iters,
-    ) in rigid_bodies.iter()
+    ) in order.creation(rigid_bodies.iter(), |body| body.0 .0)
     {
         let mut builder = RigidBodyBuilder::new((*rb).into());
         builder = builder.enabled(disabled.is_none());

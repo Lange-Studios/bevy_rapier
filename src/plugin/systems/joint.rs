@@ -7,6 +7,7 @@ use crate::plugin::context::DefaultRapierContext;
 use crate::plugin::context::RapierContextEntityLink;
 use crate::plugin::context::RapierContextJoints;
 use crate::plugin::context::RapierRigidBodySet;
+use crate::plugin::stable_order::StableOrder;
 use bevy::prelude::*;
 
 /// System responsible for creating new Rapier joints from the related `bevy_rapier` components.
@@ -23,8 +24,11 @@ pub fn init_joints(
         Without<RapierMultibodyJointHandle>,
     >,
     child_of_query: Query<&ChildOf>,
+    order: StableOrder,
 ) {
-    for (entity, entity_context_link, joint) in impulse_joints.iter() {
+    for (entity, entity_context_link, joint) in
+        order.creation(impulse_joints.iter(), |joint| joint.0)
+    {
         // Get rapier context from RapierContextEntityLink or insert its default value.
         let context_entity = entity_context_link.map_or_else(
             || {
@@ -72,7 +76,9 @@ pub fn init_joints(
         }
     }
 
-    for (entity, entity_context_link, joint) in multibody_joints.iter() {
+    for (entity, entity_context_link, joint) in
+        order.creation(multibody_joints.iter(), |joint| joint.0)
+    {
         // Get rapier context from RapierContextEntityLink or insert its default value.
         let context_entity = entity_context_link.map_or_else(
             || {
@@ -133,17 +139,22 @@ pub fn apply_joint_user_changes(
         ),
         Changed<MultibodyJoint>,
     >,
+    order: StableOrder,
 ) {
     // TODO: right now, we only support propagating changes made to the joint data.
     //       Re-parenting the joint isn’t supported yet.
-    for (link, handle, changed_joint) in changed_impulse_joints.iter() {
+    for (link, handle, changed_joint) in
+        order.changes(changed_impulse_joints.iter(), |changed| changed.1 .0 .0)
+    {
         let mut context = context.get_mut(link.0).expect(RAPIER_CONTEXT_EXPECT_ERROR);
         if let Some(joint) = context.impulse_joints.get_mut(handle.0, false) {
             joint.data = changed_joint.data.as_ref().into_rapier();
         }
     }
 
-    for (link, handle, changed_joint) in changed_multibody_joints.iter() {
+    for (link, handle, changed_joint) in
+        order.changes(changed_multibody_joints.iter(), |changed| changed.1 .0 .0)
+    {
         let mut context = context.get_mut(link.0).expect(RAPIER_CONTEXT_EXPECT_ERROR);
         // TODO: not sure this will always work properly, e.g., if the number of Dofs is changed.
         if let Some((mb, link_id)) = context.multibody_joints.get_mut(handle.0) {

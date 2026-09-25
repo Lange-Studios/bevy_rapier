@@ -39,6 +39,8 @@ pub struct RapierPhysicsPlugin<PhysicsHooks = ()> {
     /// If passing an empty set, the plugin will still add the Physics Sets to the plugin schedule,
     /// but no systems will be added automatically.
     enabled_physics_schedules: HashSet<PhysicsSet>,
+    /// Inserts [`RapierStableOrder`](crate::plugin::RapierStableOrder) when set.
+    stable_order: bool,
     _phantom: PhantomData<PhysicsHooks>,
 }
 
@@ -111,6 +113,16 @@ where
     /// Adds the physics systems to the `FixedUpdate` schedule rather than `PostUpdate`.
     pub fn in_fixed_schedule(self) -> Self {
         self.in_schedule(FixedUpdate)
+    }
+
+    /// Specifies whether Rapier objects are created, changed and removed in an order that doesn't
+    /// depend on Bevy's storage layout (see [`stable_order`](crate::plugin::stable_order)), which
+    /// deterministic simulation across worlds needs.
+    ///
+    /// The default value is `false`.
+    pub fn with_stable_order(mut self, stable_order: bool) -> Self {
+        self.stable_order = stable_order;
+        self
     }
 
     /// Adds the physics systems to the provided schedule rather than `PostUpdate`.
@@ -209,6 +221,7 @@ impl<PhysicsHooksSystemParam> Default for RapierPhysicsPlugin<PhysicsHooksSystem
                 PhysicsSet::StepSimulation,
                 PhysicsSet::Writeback,
             ]),
+            stable_order: false,
             _phantom: PhantomData,
         }
     }
@@ -281,6 +294,12 @@ where
         } else {
             app.insert_resource(self.default_world_setup.clone());
         }
+
+        if self.stable_order {
+            app.init_resource::<crate::plugin::RapierStableOrder>();
+        }
+
+        app.register_type::<crate::plugin::RapierCreationOrder>();
 
         app.add_systems(
             PreStartup,

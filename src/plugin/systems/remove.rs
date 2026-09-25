@@ -10,6 +10,9 @@ use crate::geometry::RapierColliderHandle;
 use crate::plugin::context::{
     RapierContextColliders, RapierContextJoints, RapierContextSimulation, RapierRigidBodySet,
 };
+use crate::plugin::stable_order::{
+    body_index, collider_index, impulse_joint_index, multibody_joint_index, StableOrder,
+};
 use crate::prelude::MassModifiedEvent;
 use crate::prelude::RigidBodyDisabled;
 use crate::prelude::Sensor;
@@ -57,14 +60,56 @@ pub fn sync_removals(
     mut removed_colliders_disabled: RemovedComponents<ColliderDisabled>,
 
     mut mass_modified: MessageWriter<MassModifiedEvent>,
+    order: StableOrder,
 ) {
+    // Each is looked up before anything is removed, so the order is decided by the handles the
+    // entities had coming in.
+    let body = |entity| body_index(context_writer.iter().map(|context| context.3), entity);
+    let removed_bodies = order.removal(
+        removed_bodies
+            .read()
+            .filter(|e| !q_has_rigidbody_handle.contains(*e)),
+        body,
+    );
+    let orphan_bodies = order.removal(orphan_bodies.iter(), body);
+
+    let collider = |entity| collider_index(context_writer.iter().map(|context| context.1), entity);
+    let removed_colliders = order.removal(
+        removed_colliders
+            .read()
+            .filter(|e| !q_has_collider_handle.contains(*e)),
+        collider,
+    );
+    let orphan_colliders = order.removal(orphan_colliders.iter(), collider);
+
+    let impulse_joint =
+        |entity| impulse_joint_index(context_writer.iter().map(|context| context.2), entity);
+    let removed_impulse_joints = order.removal(
+        removed_impulse_joints
+            .read()
+            .filter(|e| !q_has_impulse_joint_handle.contains(*e)),
+        impulse_joint,
+    );
+    let orphan_impulse_joints = order.removal(orphan_impulse_joints.iter(), impulse_joint);
+
+    let multibody_joint =
+        |entity| multibody_joint_index(context_writer.iter().map(|context| context.2), entity);
+    let removed_multibody_joints = order.removal(
+        removed_multibody_joints
+            .read()
+            .filter(|e| !q_has_multibody_joint_handle.contains(*e)),
+        multibody_joint,
+    );
+    let orphan_multibody_joints = order.removal(orphan_multibody_joints.iter(), multibody_joint);
+
+    let removed_sensors = order.removal(removed_sensors.read(), collider);
+    let removed_colliders_disabled = order.removal(removed_colliders_disabled.read(), collider);
+    let removed_rigid_body_disabled = order.removal(removed_rigid_body_disabled.read(), body);
+
     /*
      * Rigid-bodies removal detection.
      */
-    for entity in removed_bodies
-        .read()
-        .filter(|e| !q_has_rigidbody_handle.contains(*e))
-    {
+    for entity in removed_bodies {
         let Some(((mut context, mut context_colliders, mut joints, mut rigidbody_set), handle)) =
             find_context(&mut context_writer, |res| res.3.entity2body.remove(&entity))
         else {
@@ -84,7 +129,7 @@ pub fn sync_removals(
         );
     }
 
-    for entity in orphan_bodies.iter() {
+    for entity in orphan_bodies {
         if let Some(((mut context, mut context_colliders, mut joints, mut rigidbody_set), handle)) =
             find_context(&mut context_writer, |res| res.3.entity2body.remove(&entity))
         {
@@ -106,10 +151,7 @@ pub fn sync_removals(
     /*
      * Collider removal detection.
      */
-    for entity in removed_colliders
-        .read()
-        .filter(|e| !q_has_collider_handle.contains(*e))
-    {
+    for entity in removed_colliders {
         let Some(((mut context, mut context_colliders, _, mut rigidbody_set), handle)) =
             find_context(&mut context_writer, |res| {
                 res.1.entity2collider.remove(&entity)
@@ -131,7 +173,7 @@ pub fn sync_removals(
         context.deleted_colliders.insert(handle, entity);
     }
 
-    for entity in orphan_colliders.iter() {
+    for entity in orphan_colliders {
         if let Some(((mut context, mut context_colliders, _, mut rigidbody_set), handle)) =
             find_context(&mut context_writer, |res| {
                 res.1.entity2collider.remove(&entity)
@@ -157,10 +199,7 @@ pub fn sync_removals(
     /*
      * Impulse joint removal detection.
      */
-    for entity in removed_impulse_joints
-        .read()
-        .filter(|e| !q_has_impulse_joint_handle.contains(*e))
-    {
+    for entity in removed_impulse_joints {
         let Some(((_, _, mut joints, _), handle)) = find_context(&mut context_writer, |res| {
             res.2.entity2impulse_joint.remove(&entity)
         }) else {
@@ -169,7 +208,7 @@ pub fn sync_removals(
         joints.impulse_joints.remove(handle, true);
     }
 
-    for entity in orphan_impulse_joints.iter() {
+    for entity in orphan_impulse_joints {
         if let Some(((_, _, mut joints, _), handle)) = find_context(&mut context_writer, |res| {
             res.2.entity2impulse_joint.remove(&entity)
         }) {
@@ -181,10 +220,7 @@ pub fn sync_removals(
     /*
      * Multibody joint removal detection.
      */
-    for entity in removed_multibody_joints
-        .read()
-        .filter(|e| !q_has_multibody_joint_handle.contains(*e))
-    {
+    for entity in removed_multibody_joints {
         let Some(((_, _, mut joints, _), handle)) = find_context(&mut context_writer, |res| {
             res.2.entity2multibody_joint.remove(&entity)
         }) else {
@@ -193,7 +229,7 @@ pub fn sync_removals(
         joints.multibody_joints.remove(handle, true);
     }
 
-    for entity in orphan_multibody_joints.iter() {
+    for entity in orphan_multibody_joints {
         if let Some(((_, _, mut joints, _), handle)) = find_context(&mut context_writer, |res| {
             res.2.entity2multibody_joint.remove(&entity)
         }) {
@@ -207,7 +243,7 @@ pub fn sync_removals(
     /*
      * Marker components removal detection.
      */
-    for entity in removed_sensors.read() {
+    for entity in removed_sensors {
         if let Some((mut context, handle)) = find_context(&mut context_writer, |context| {
             context.1.entity2collider.get(&entity).copied()
         }) {
@@ -217,7 +253,7 @@ pub fn sync_removals(
         }
     }
 
-    for entity in removed_colliders_disabled.read() {
+    for entity in removed_colliders_disabled {
         if let Some((mut context, handle)) = find_context(&mut context_writer, |context| {
             context.1.entity2collider.get(&entity).copied()
         }) {
@@ -227,7 +263,7 @@ pub fn sync_removals(
         }
     }
 
-    for entity in removed_rigid_body_disabled.read() {
+    for entity in removed_rigid_body_disabled {
         if let Some(((_, _, _, mut rigidbody_set), handle)) =
             find_context(&mut context_writer, |res| {
                 res.3.entity2body.get(&entity).copied()
