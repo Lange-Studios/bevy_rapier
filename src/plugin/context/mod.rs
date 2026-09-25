@@ -2,6 +2,7 @@
 
 pub mod systemparams;
 
+use bevy::ecs::entity::{EntityMapper, MapEntities};
 use bevy::prelude::*;
 use rapier::parry::query::QueryDispatcher;
 use std::collections::HashMap;
@@ -57,18 +58,47 @@ pub struct DefaultRapierContext;
 /// and others from [`crate::plugin::context`], responsible for handling
 /// its rapier data.
 #[derive(Component, Reflect, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RapierContextEntityLink(pub Entity);
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
+pub struct RapierContextEntityLink(#[entities] pub Entity);
 
 /// The set of colliders part of the simulation.
 ///
 /// This should be attached on an entity with a [`RapierContextSimulation`]
 #[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 #[derive(Component, Default, Debug, Clone)]
+#[component(map_entities)]
 pub struct RapierContextColliders {
     /// The set of colliders part of the simulation.
     pub colliders: ColliderSet,
-    #[cfg_attr(feature = "serde-serialize", serde(skip))]
     pub(crate) entity2collider: HashMap<Entity, ColliderHandle>,
+}
+
+/// Points everything at the mapped entities: the entity map, and the entity each collider
+/// stores in its `user_data`.
+impl MapEntities for RapierContextColliders {
+    fn map_entities<E: EntityMapper>(&mut self, entity_mapper: &mut E) {
+        self.entity2collider = map_keys(std::mem::take(&mut self.entity2collider), entity_mapper);
+
+        for (_, collider) in self.colliders.iter_mut_untracked() {
+            collider.user_data = map_user_data(collider.user_data, entity_mapper);
+        }
+    }
+}
+
+fn map_keys<V>(
+    map: HashMap<Entity, V>,
+    entity_mapper: &mut impl EntityMapper,
+) -> HashMap<Entity, V> {
+    map.into_iter()
+        .map(|(entity, value)| (entity_mapper.get_mapped(entity), value))
+        .collect()
+}
+
+/// bevy_rapier keeps each body's and collider's entity in its `user_data`.
+fn map_user_data(user_data: u128, entity_mapper: &mut impl EntityMapper) -> u128 {
+    entity_mapper
+        .get_mapped(Entity::from_bits(user_data as u64))
+        .to_bits() as u128
 }
 
 impl RapierContextColliders {
@@ -135,16 +165,28 @@ impl RapierContextColliders {
 /// This should be attached on an entity with a [`RapierContextSimulation`]
 #[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 #[derive(Component, Default, Debug, Clone)]
+#[component(map_entities)]
 pub struct RapierContextJoints {
     /// The set of impulse joints part of the simulation.
     pub impulse_joints: ImpulseJointSet,
     /// The set of multibody joints part of the simulation.
     pub multibody_joints: MultibodyJointSet,
 
-    #[cfg_attr(feature = "serde-serialize", serde(skip))]
     pub(crate) entity2impulse_joint: HashMap<Entity, ImpulseJointHandle>,
-    #[cfg_attr(feature = "serde-serialize", serde(skip))]
     pub(crate) entity2multibody_joint: HashMap<Entity, MultibodyJointHandle>,
+}
+
+impl MapEntities for RapierContextJoints {
+    fn map_entities<E: EntityMapper>(&mut self, entity_mapper: &mut E) {
+        self.entity2impulse_joint = map_keys(
+            std::mem::take(&mut self.entity2impulse_joint),
+            entity_mapper,
+        );
+        self.entity2multibody_joint = map_keys(
+            std::mem::take(&mut self.entity2multibody_joint),
+            entity_mapper,
+        );
+    }
 }
 
 impl RapierContextJoints {
@@ -573,16 +615,26 @@ impl<'a> RapierQueryPipeline<'a> {
 /// This should be attached on an entity with a [`RapierContextSimulation`]
 #[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 #[derive(Component, Default, Clone)]
+#[component(map_entities)]
 pub struct RapierRigidBodySet {
     /// The set of rigid-bodies part of the simulation.
     pub bodies: RigidBodySet,
     /// NOTE: this map is needed to handle despawning.
-    #[cfg_attr(feature = "serde-serialize", serde(skip))]
     pub(crate) entity2body: HashMap<Entity, RigidBodyHandle>,
 
-    /// For transform change detection.
-    #[cfg_attr(feature = "serde-serialize", serde(skip))]
+    /// For transform change detection. Serialized with the rest: a world loaded without it would
+    /// take every body's transform for a user change and set it again.
     pub(crate) last_body_transform_set: HashMap<RigidBodyHandle, GlobalTransform>,
+}
+
+impl MapEntities for RapierRigidBodySet {
+    fn map_entities<E: EntityMapper>(&mut self, entity_mapper: &mut E) {
+        self.entity2body = map_keys(std::mem::take(&mut self.entity2body), entity_mapper);
+
+        for (_, body) in self.bodies.iter_mut_untracked() {
+            body.user_data = map_user_data(body.user_data, entity_mapper);
+        }
+    }
 }
 
 impl RapierRigidBodySet {

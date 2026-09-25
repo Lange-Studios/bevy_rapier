@@ -20,6 +20,7 @@ use rapier::{dynamics::RigidBody, geometry::ContactForceEvent};
 
 /// The Rapier handle of a collider that was inserted to the physics scene.
 #[derive(Copy, Clone, Debug, Component)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub struct RapierColliderHandle(pub ColliderHandle);
 
 /// A component which will be replaced by the specified collider type after the referenced mesh become available.
@@ -117,6 +118,7 @@ impl fmt::Debug for Collider {
 
 /// Overwrites the default application of [`GlobalTransform`] scale to a [`Collider`]'s shapes.
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub enum ColliderScale {
     /// This scale will be multiplied with the scale in the [`GlobalTransform`] component
     /// before being applied to the collider.
@@ -127,11 +129,13 @@ pub enum ColliderScale {
 
 /// Indicates whether or not the [`Collider`] is a sensor.
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Component, Reflect)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 #[reflect(Component, Default, PartialEq)]
 pub struct Sensor;
 
 /// Custom mass-properties of a [`Collider`].
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 #[reflect(Component, Default, PartialEq)]
 pub enum ColliderMassProperties {
     /// The mass-properties are computed automatically from the collider’s shape and this density.
@@ -150,6 +154,7 @@ impl Default for ColliderMassProperties {
 
 /// The friction affecting a [`Collider`].
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 #[reflect(Component, Default, PartialEq)]
 pub struct Friction {
     /// The friction coefficient of a collider.
@@ -192,6 +197,7 @@ impl Friction {
 
 /// The restitution affecting a [`Collider`].
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 #[reflect(Component, Default, PartialEq)]
 pub struct Restitution {
     /// The restitution coefficient of a collider.
@@ -593,6 +599,7 @@ impl ActiveCollidingEntities {
 
 /// Indicates whether or not the collider is disabled explicitly by the user.
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Component, Reflect)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 #[reflect(Component, Default, PartialEq)]
 pub struct ColliderDisabled;
 

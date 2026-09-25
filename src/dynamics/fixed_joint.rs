@@ -5,6 +5,7 @@ use rapier::dynamics::JointAxesMask;
 use super::TypedJoint;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 #[repr(transparent)]
 /// A fixed joint, locks all relative motion between two bodies.
 pub struct FixedJoint {

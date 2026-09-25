@@ -10,6 +10,7 @@ use super::SphericalJoint;
 
 /// Wrapper enum over a specific joint.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub enum TypedJoint {
     /// See [`FixedJoint`]
     FixedJoint(FixedJoint),
@@ -60,10 +61,12 @@ impl AsRef<GenericJoint> for TypedJoint {
 
 /// The handle of an impulse joint added to the physics scene.
 #[derive(Copy, Clone, Debug, Component)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub struct RapierImpulseJointHandle(pub ImpulseJointHandle);
 
 /// The handle of a multibody joint added to the physics scene.
 #[derive(Copy, Clone, Debug, Component)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub struct RapierMultibodyJointHandle(pub MultibodyJointHandle);
 
 /// An impulse-based joint attached to two entities.
@@ -78,8 +81,10 @@ pub struct RapierMultibodyJointHandle(pub MultibodyJointHandle);
 /// rigid-body (this is similar to the technique used to attach multiple
 /// colliders to the same rigid-body).
 #[derive(Copy, Clone, Debug, PartialEq, Component)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub struct ImpulseJoint {
     /// The entity containing the rigid-body used as the first endpoint of this joint.
+    #[entities]
     pub parent: Entity,
     /// The joint’s description.
     pub data: TypedJoint,
@@ -105,8 +110,10 @@ impl ImpulseJoint {
 /// If a closed loop is detected, the last joint that closes the loop is ignored, and an
 /// error is printed to `stderr` (using `log::error!`).
 #[derive(Copy, Clone, Debug, PartialEq, Component)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub struct MultibodyJoint {
     /// The entity containing the rigid-body used as the first endpoint of this joint.
+    #[entities]
     pub parent: Entity,
     /// The joint’s description.
     pub data: TypedJoint,

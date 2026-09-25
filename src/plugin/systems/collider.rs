@@ -17,6 +17,7 @@ use crate::utils;
 use bevy::prelude::*;
 use rapier::dynamics::RigidBodyHandle;
 use rapier::geometry::ColliderBuilder;
+use std::sync::Arc;
 #[cfg(all(feature = "dim3", feature = "async-collider"))]
 use {
     crate::prelude::{AsyncCollider, AsyncSceneCollider},
@@ -192,9 +193,21 @@ pub fn apply_collider_user_changes(
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
         let config = config.get(rapier_entity.rapier_context_link.0).unwrap();
+        let mut scaled_shape = shape.clone();
+        scaled_shape.set_scale(shape.scale, config.scaled_shape_subdivision);
+
+        // The collider holds the same shared shape as long as it's unchanged. Setting it anyway
+        // would make Rapier treat it as a new shape.
+        let unchanged = context_colliders
+            .colliders
+            .get(handle.0)
+            .is_some_and(|co| Arc::ptr_eq(&co.shared_shape().0, &scaled_shape.raw.0));
+
+        if unchanged {
+            continue;
+        }
+
         if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
-            let mut scaled_shape = shape.clone();
-            scaled_shape.set_scale(shape.scale, config.scaled_shape_subdivision);
             co.set_shape(scaled_shape.raw.clone());
 
             if let Some(body) = co.parent() {

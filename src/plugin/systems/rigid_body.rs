@@ -332,6 +332,16 @@ pub fn apply_rigid_body_user_changes(
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
             .into_inner();
+        // Setting the same force again would still wake the body up and restart its sleep timer.
+        #[allow(clippy::useless_conversion)] // Need to convert if dim3 enabled
+        let unchanged = rigidbody_set.bodies.get(handle.0).is_some_and(|rb| {
+            rb.user_force() == forces.force && rb.user_torque() == forces.torque.into()
+        });
+
+        if unchanged {
+            continue;
+        }
+
         if let Some(rb) = rigidbody_set.bodies.get_mut(handle.0) {
             rb.reset_forces(true);
             rb.reset_torques(true);
