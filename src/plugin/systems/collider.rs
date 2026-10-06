@@ -89,12 +89,27 @@ pub fn apply_scale(
 
 /// System responsible for applying changes the user made to a collider-related component.
 pub fn apply_collider_user_changes(
-    mut context: Query<(&RapierRigidBodySet, &mut RapierContextColliders)>,
+    mut context: Query<(&mut RapierRigidBodySet, &mut RapierContextColliders)>,
     config: Query<&RapierConfiguration>,
-    (changed_collider_transforms, child_of_query, transform_query): (
+    (
+        changed_collider_placements,
+        mut removed_child_of,
+        colliders,
+        child_of_query,
+        transform_query,
+    ): (
+        Query<
+            Entity,
+            (
+                With<RapierColliderHandle>,
+                Without<RapierRigidBodyHandle>,
+                Or<(Changed<GlobalTransform>, Changed<ChildOf>)>,
+            ),
+        >,
+        RemovedComponents<ChildOf>,
         Query<
             (RapierEntity, &RapierColliderHandle, &GlobalTransform),
-            (Without<RapierRigidBodyHandle>, Changed<GlobalTransform>),
+            Without<RapierRigidBodyHandle>,
         >,
         Query<&ChildOf>,
         Query<&Transform>,
@@ -147,41 +162,67 @@ pub fn apply_collider_user_changes(
     mut mass_modified: MessageWriter<MassModifiedEvent>,
     order: StableOrder,
 ) {
-    for (rapier_entity, handle, transform) in order
-        .changes(changed_collider_transforms.iter(), |changed| {
-            changed.1 .0 .0
-        })
-    {
-        let (rigidbody_set, mut context_colliders) = context
+    // A collider moved, or its place in the hierarchy changed (removing a parent doesn't always
+    // change its global transform). It may now belong to another body, or to none.
+    let mut placed: Vec<Entity> = changed_collider_placements.iter().collect();
+    placed.extend(removed_child_of.read());
+    placed.sort_unstable();
+    placed.dedup();
+
+    for (rapier_entity, handle, transform) in order.changes(
+        placed
+            .into_iter()
+            .filter_map(|entity| colliders.get(entity).ok()),
+        |changed| changed.1 .0 .0,
+    ) {
+        let (mut rigidbody_set, mut context_colliders) = context
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
-        if context_colliders
-            .collider_parent(rigidbody_set, rapier_entity.entity)
-            .is_some()
-        {
-            let (_, collider_position) = collider_offset(
-                rapier_entity.entity,
-                rigidbody_set,
-                &child_of_query,
-                &transform_query,
-            );
+        let (body, collider_position) = collider_offset(
+            rapier_entity.entity,
+            &rigidbody_set,
+            &child_of_query,
+            &transform_query,
+        );
+        let Some(old_body) = context_colliders
+            .colliders
+            .get(handle.0)
+            .map(|co| co.parent())
+        else {
+            continue;
+        };
 
-            if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
-                let new_pos = utils::transform_to_iso(&collider_position);
+        if old_body != body {
+            context_colliders
+                .colliders
+                .set_parent(handle.0, body, &mut rigidbody_set.bodies);
 
-                if co
-                    .position_wrt_parent()
-                    .map(|pos| *pos != new_pos)
-                    .unwrap_or(true)
-                {
-                    co.set_position_wrt_parent(new_pos);
+            for body in [old_body, body].into_iter().flatten() {
+                if let Some(body_entity) = rigidbody_set.rigid_body_entity(body) {
+                    mass_modified.write(body_entity.into());
                 }
             }
-        } else if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
+        }
+
+        let Some(co) = context_colliders.colliders.get_mut(handle.0) else {
+            continue;
+        };
+
+        if body.is_some() {
+            let new_pos = utils::transform_to_iso(&collider_position);
+
+            if co
+                .position_wrt_parent()
+                .map(|pos| *pos != new_pos)
+                .unwrap_or(true)
+            {
+                co.set_position_wrt_parent(new_pos);
+            }
+        } else {
             let new_pos = utils::transform_to_iso(&transform.compute_transform());
 
             if *co.position() != new_pos {
-                co.set_position(utils::transform_to_iso(&transform.compute_transform()));
+                co.set_position(new_pos);
             }
         }
     }
