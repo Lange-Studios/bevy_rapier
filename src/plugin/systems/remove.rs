@@ -32,16 +32,25 @@ pub fn sync_removals(
     )>,
     // Sometimes a Remove immediately followed by Add happens. These `q_has_*` queries prevent that immediate Add
     // from being removed by this system by verifying it's still removed.
+    // The same for marker components: a removal only counts if the marker is still gone (a
+    // rollback that removes one and a resimulation that adds it back to the entity, or a new
+    // collider on a reused entity, must keep it).
     (
         q_has_rigidbody_handle,
         q_has_collider_handle,
         q_has_multibody_joint_handle,
         q_has_impulse_joint_handle,
+        q_has_sensor,
+        q_has_rigid_body_disabled,
+        q_has_collider_disabled,
     ): (
         Query<(), With<RapierRigidBodyHandle>>,
         Query<(), With<RapierColliderHandle>>,
         Query<(), With<RapierMultibodyJointHandle>>,
         Query<(), With<RapierImpulseJointHandle>>,
+        Query<(), With<Sensor>>,
+        Query<(), With<RigidBodyDisabled>>,
+        Query<(), With<ColliderDisabled>>,
     ),
     mut removed_bodies: RemovedComponents<RapierRigidBodyHandle>,
     mut removed_colliders: RemovedComponents<RapierColliderHandle>,
@@ -102,9 +111,24 @@ pub fn sync_removals(
     );
     let orphan_multibody_joints = order.removal(orphan_multibody_joints.iter(), multibody_joint);
 
-    let removed_sensors = order.removal(removed_sensors.read(), collider);
-    let removed_colliders_disabled = order.removal(removed_colliders_disabled.read(), collider);
-    let removed_rigid_body_disabled = order.removal(removed_rigid_body_disabled.read(), body);
+    let removed_sensors = order.removal(
+        removed_sensors
+            .read()
+            .filter(|e| !q_has_sensor.contains(*e)),
+        collider,
+    );
+    let removed_colliders_disabled = order.removal(
+        removed_colliders_disabled
+            .read()
+            .filter(|e| !q_has_collider_disabled.contains(*e)),
+        collider,
+    );
+    let removed_rigid_body_disabled = order.removal(
+        removed_rigid_body_disabled
+            .read()
+            .filter(|e| !q_has_rigid_body_disabled.contains(*e)),
+        body,
+    );
 
     /*
      * Rigid-bodies removal detection.
