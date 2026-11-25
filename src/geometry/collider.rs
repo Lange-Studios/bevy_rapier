@@ -85,7 +85,8 @@ impl Default for ComputedColliderShape {
 /// - [`CollidingEntities`]
 /// - [`ColliderScale`]
 /// - [`ColliderDisabled`]
-#[derive(Component, Clone)] // TODO: Reflect
+#[derive(Component, Clone, Reflect)]
+#[reflect(opaque, Component)]
 #[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub struct Collider {
     /// The raw shape from Rapier.
@@ -118,6 +119,7 @@ impl fmt::Debug for Collider {
 
 /// Overwrites the default application of [`GlobalTransform`] scale to a [`Collider`]'s shapes.
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect)]
+#[reflect(Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub enum ColliderScale {
     /// This scale will be multiplied with the scale in the [`GlobalTransform`] component
