@@ -80,7 +80,8 @@ pub struct RapierMultibodyJointHandle(pub MultibodyJointHandle);
 /// joints can be added in the children of the entity containing that
 /// rigid-body (this is similar to the technique used to attach multiple
 /// colliders to the same rigid-body).
-#[derive(Copy, Clone, Debug, PartialEq, Component)]
+#[derive(Copy, Clone, Debug, PartialEq, Component, Reflect)]
+#[reflect(opaque, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub struct ImpulseJoint {
     /// The entity containing the rigid-body used as the first endpoint of this joint.
@@ -109,7 +110,8 @@ impl ImpulseJoint {
 /// Note that a set of multibody joints cannot form closed loops (for example a necklace).
 /// If a closed loop is detected, the last joint that closes the loop is ignored, and an
 /// error is printed to `stderr` (using `log::error!`).
-#[derive(Copy, Clone, Debug, PartialEq, Component)]
+#[derive(Copy, Clone, Debug, PartialEq, Component, Reflect)]
+#[reflect(opaque, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 pub struct MultibodyJoint {
     /// The entity containing the rigid-body used as the first endpoint of this joint.
